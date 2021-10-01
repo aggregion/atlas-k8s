@@ -1,0 +1,193 @@
+version: '3'
+services:
+  solr:
+    build: solr
+    container_name: solr
+    environment:
+      ZK_HOST: "zoo1:2181,zoo2:2181,zoo3:2181"
+    ports:
+      - "8981:8983"
+    volumes:
+      - solr_data:/var/solr/data/
+      - solr_index_data:/opt/solr/data
+    networks:
+      - atlas
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+  zoo1:
+    image: zookeeper:3.6.2
+    container_name: zoo1
+    restart: always
+    hostname: zoo1
+    ports:
+      - 2181:2181
+      - 7001:7000
+    volumes:
+      - zoo1_data:/data
+      - zoo1_log_data:/datalog
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr, conf, ruok
+      ZOO_CFG_EXTRA: "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider metricsProvider.httpPort=7000 metricsProvider.exportJvmInfo=true dataDir=/data"
+    networks:
+      - atlas
+
+  zoo2:
+    image: zookeeper:3.6.2
+    container_name: zoo2
+    restart: always
+    hostname: zoo2
+    ports:
+      - 2182:2181
+      - 7002:7000
+    volumes:
+      - zoo2_data:/data
+      - zoo2_log_data:/datalog
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr, conf, ruok
+      ZOO_CFG_EXTRA: "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider metricsProvider.httpPort=7000 metricsProvider.exportJvmInfo=true dataDir=/data"
+    networks:
+      - atlas
+
+  zoo3:
+    image: zookeeper:3.6.2
+    container_name: zoo3
+    restart: always
+    hostname: zoo3
+    ports:
+      - 2183:2181
+      - 7003:7000
+    volumes:
+      - zoo3_data:/data
+      - zoo3_log_data:/datalog
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr, conf, ruok
+      ZOO_CFG_EXTRA: "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider metricsProvider.httpPort=7000 metricsProvider.exportJvmInfo=true dataDir=/data"
+    networks:
+      - atlas
+  hadoop:
+    build: hadoop
+    container_name: hadoop
+    hostname: hadoop
+    ports:
+      - 9000:9000
+    volumes:
+      - hadoop_data:/data
+      - hadoop_name_data:/name
+      - hadoop_hdfs_data:/home/hdfs
+      - hadoop_yarn_data:/home/yarn
+    networks:
+      - atlas
+
+  hbase-master:
+    image: aggregion/hbase
+    container_name: hbase-master
+    hostname: hbase-master
+    env_file:
+      - ./hbase.env
+    volumes:
+      - hbase_master_data:/hbase
+    environment:
+      SERVICE_PRECONDITION: "hadoop:9000 zoo1:2181 zoo2:2181 zoo3:2181"
+    networks:
+      - atlas
+    ports:
+      - 16010:16010
+
+  hbase-region:
+    image: aggregion/hbase
+    container_name: hbase-regionserver
+    hostname: hbase-regionserver
+    env_file:
+      - ./hbase.env
+    environment:
+      MODE: "region"
+      HBASE_CONF_hbase_regionserver_hostname: hbase-region
+      SERVICE_PRECONDITION: "hadoop:9000 zoo1:2181 zoo2:2181 zoo3:2181 hbase-master:16010"
+    networks:
+      - atlas
+    volumes:
+      - hbase_region_data:/hbase
+    ports:
+      - 16030:16030
+    depends_on:
+      - hbase-master
+  cassandra:
+    image: cassandra:3.11.11
+    container_name: cassandra
+    hostname: cassandra
+    environment:
+      CASSANDRA_START_RPC: "true"
+    networks:
+      - atlas
+    volumes:
+      - cassandra_data:/var/lib/cassandra/data
+  kafka:
+    image: docker.io/bitnami/kafka:2
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zoo1:2181,zoo2:2181,zoo3:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ADVERTISED_HOST_NAME=kafka
+      - KAFKA_ADVERTISED_PORT=9092
+    networks:
+      - atlas
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+  atlas:
+    build: atlas
+    container_name: atlas
+    ports:
+      - "21000:21000"
+    environment:
+      MANAGE_LOCAL_SOLR: "false"
+      MANAGE_LOCAL_HBASE: "false"
+      SERVICE_PRECONDITION: "hadoop:9000 zoo1:2181 zoo2:2181 zoo3:2181 hbase-master:16010 solr:8983"
+    networks:
+      - atlas
+    volumes:
+      - "atlas_data:/opt/atlas/data"
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+      - solr
+      - cassandra
+      - hbase-master
+      - hbase-region
+      - kafka
+volumes:
+  solr_data:
+  solr_index_data:
+  hadoop_data:
+  hadoop_name_data:
+  hadoop_hdfs_data:
+  hadoop_yarn_data:
+  cassandra_data:
+  kafka_data:
+  atlas_data:
+  zoo1_data:
+  zoo2_data:
+  zoo3_data:
+  zoo1_log_data:
+  zoo2_log_data:
+  zoo3_log_data:
+  hbase_master_data:
+  hbase_region_data:
+networks:
+  atlas:
