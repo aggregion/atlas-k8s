@@ -1,4 +1,4 @@
-# Apache Atlas docker-compose & k8s configs, using: Cassandra, Solr, HBase, Hadoop, Kafka, Zookeper
+# Apache Atlas docker-compose & k8s configs, using: Cassandra, Solr, HBase, Hadoop, Kafka, Zookeeper
 
 * Fast start
 * Persisting all necessary data on disk
