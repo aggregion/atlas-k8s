@@ -13,8 +13,6 @@ RUN chown solr:solr /opt/solr/server/solr/solr.xml
 # Copy script that creates Atlas collections
 COPY ./scripts/atlas-solr-create.sh /docker-entrypoint-initdb.d/
 
-RUN mkdir -p /var/solr/data/index_data
-RUN chown -R solr:solr /var/solr/data/index_data
 
 EXPOSE 8983
 
