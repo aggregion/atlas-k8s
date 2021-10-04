@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hbase-server
+  labels:
+    app: hbase
+spec:
+  ports:
+    - port: 16010
+      name: client
+  selector:
+    app: hbase
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hbase
+spec:
+  selector:
+    matchLabels:
+      app: hbase
+  serviceName: hbase-server
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: hbase
+    spec:
+      containers:
+        - name: hbase-master
+          imagePullPolicy: Always
+          image: "aggregion/hbase"
+          env:
+            - name: HBASE_CONF_hbase_rootdir
+              value: "hdfs://hadoop-0.hadoop-server.{{ .Release.Namespace }}.svc.cluster.local:9000/hbase"
+            - name: HBASE_CONF_hbase_cluster_distributed
+              value: "true"
+            - name: HBASE_CONF_hbase_zookeeper_quorum
+              value: "zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: HBASE_CONF_zookeeper_znode_parent
+              value: "/hbase"
+            - name: HBASE_CONF_hbase_master
+              value: "hbase-0.hbase-server.{{ .Release.Namespace }}.svc.cluster.local:16000"
+            - name: HBASE_CONF_hbase_master_hostname
+              value: "hbase-0.hbase-server.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: HBASE_CONF_hbase_master_port
+              value: "16000"
+            - name: HBASE_CONF_hbase_master_info_port
+              value: "16010"
+            - name: HBASE_CONF_hbase_regionserver_port
+              value: "16020"
+            - name: HBASE_CONF_hbase_regionserver_info_port
+              value: "16030"
+            - name: HBASE_MANAGES_ZK
+              value: "false"
+            - name: SERVICE_PRECONDITION
+              value: "hadoop-0.hadoop-server.{{ .Release.Namespace }}.svc.cluster.local:9000 zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181 zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181 zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181"
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 16010
+              name: client
+          volumeMounts:
+            - name: hbase-master-data
+              mountPath: /hbase
+        - name: hbase-regionserver
+          imagePullPolicy: Always
+          image: "aggregion/hbase"
+          env:
+            - name: HBASE_CONF_hbase_rootdir
+              value: "hdfs://hadoop-0.hadoop-server.{{ .Release.Namespace }}.svc.cluster.local:9000/hbase"
+            - name: HBASE_CONF_hbase_cluster_distributed
+              value: "true"
+            - name: HBASE_CONF_hbase_zookeeper_quorum
+              value: "zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: HBASE_CONF_zookeeper_znode_parent
+              value: "/hbase"
+            - name: HBASE_CONF_hbase_master
+              value: "hbase-master-0.hbase-server.{{ .Release.Namespace }}.svc.cluster.local:16000"
+            - name: HBASE_CONF_hbase_master_hostname
+              value: "hbase-0.hbase-server.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: HBASE_CONF_hbase_master_port
+              value: "16000"
+            - name: HBASE_CONF_hbase_master_info_port
+              value: "16010"
+            - name: HBASE_CONF_hbase_regionserver_port
+              value: "16020"
+            - name: HBASE_CONF_hbase_regionserver_info_port
+              value: "16030"
+            - name: HBASE_MANAGES_ZK
+              value: "false"
+            - name: MODE
+              value: "region"
+            - name: SERVICE_PRECONDITION
+              value: "hadoop-0.hadoop-server.{{ .Release.Namespace }}.svc.cluster.local:9000 zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181 zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181 zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local:2181 localhost:16010"
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 16010
+              name: master-info
+            - containerPort: 16020
+              name: client
+          volumeMounts:
+            - name: hbase-regionserver-data
+              mountPath: /hbase
+      imagePullSecrets:
+        - name: regcred
+  volumeClaimTemplates:
+    - metadata:
+        name: hbase-master-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: hbase-regionserver-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi

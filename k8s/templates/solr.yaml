@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: solr-server
+  labels:
+    app: solr
+spec:
+  ports:
+    - port: 8983
+      name: client
+  selector:
+    app: solr
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: solr
+spec:
+  selector:
+    matchLabels:
+      app: solr
+  serviceName: solr-server
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: solr
+    spec:
+      containers:
+        - name: solr
+          imagePullPolicy: Always
+          image: "registry.aggregion.com/atlas/solr:latest"
+          env:
+            - name: ZK_HOST
+              value: "zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local"
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 8983
+              name: client
+          volumeMounts:
+            - name: datadir
+              mountPath: /var/solr/data
+      initContainers:
+        - name: solr-init
+          image: busybox:latest
+          command: [ "sh","-c","mkdir -p /vol-path && chown -R 8983:8983 /vol-path" ]
+          resources:
+            limits:
+              cpu: "0.2"
+              memory: 200Mi
+          volumeMounts:
+            - name: datadir
+              mountPath: /vol-path
+      imagePullSecrets:
+        - name: regcred
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi

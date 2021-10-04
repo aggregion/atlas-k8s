@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: atlas-server
+  labels:
+    app: atlas
+spec:
+  ports:
+    - port: 21000
+      name: client
+  selector:
+    app: atlas
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: atlas
+spec:
+  selector:
+    matchLabels:
+      app: atlas
+  serviceName: atlas-server
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: atlas
+    spec:
+      containers:
+        - name: atlas
+          imagePullPolicy: Always
+          image: "aggregion/atlas"
+          env:
+            - name: ZOOKEEPER_HOST
+              value: "zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: CASSANDRA_HOST
+              value: "cassandra-0.cassandra-server.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: SOLR_HOST
+              value: "solr-0.solr-server.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: KAFKA_HOST
+              value: "kafka-0.kafka-server.{{ .Release.Namespace }}.svc.cluster.local"
+          resources:
+            requests:
+              memory: "2Gi"
+          ports:
+            - containerPort: 21000
+              name: client
+          volumeMounts:
+            - name: datadir
+              mountPath: /opt/atlas/data
+      imagePullSecrets:
+        - name: regcred
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 4Gi

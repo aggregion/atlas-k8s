@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-server
+  labels:
+    app: kafka
+spec:
+  ports:
+    - port: 9092
+      name: client
+  selector:
+    app: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  serviceName: kafka-server
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          imagePullPolicy: Always
+          image: "docker.io/bitnami/kafka:2"
+          env:
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "zk-0.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-1.zk-hs.{{ .Release.Namespace }}.svc.cluster.local,zk-2.zk-hs.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_BROKER_ID
+              value: "1"
+            - name: KAFKA_ADVERTISED_HOST_NAME
+              value: "kafka-0.kafka-server.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: KAFKA_ADVERTISED_PORT
+              value: "9092"
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+          resources:
+            requests:
+              memory: "2Gi"
+          ports:
+            - containerPort: 9092
+              name: client
+          volumeMounts:
+            - name: datadir
+              mountPath: /bitnami
+      initContainers:
+        - name: kafka-init
+          image: "busybox:latest"
+          command: [ "sh","-c","mkdir -p /bitnami && chown -R 1001:0 /bitnami" ]
+          resources:
+            limits:
+              cpu: "0.2"
+              memory: 200Mi
+          volumeMounts:
+            - name: datadir
+              mountPath: /bitnami
+      imagePullSecrets:
+        - name: regcred
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi

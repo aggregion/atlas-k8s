@@ -20,7 +20,7 @@ service ssh start
 
 if [ ! -e /data/.setupDone ]
 then
-  su -c "${HADOOP_HOME}/bin/hdfs namenode -format" hdfs
+  su -c "${HADOOP_HOME}/bin/hdfs namenode -format -nonInteractive -force" hdfs
   touch /data/.setupDone
 fi
 

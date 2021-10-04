@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-server
+  labels:
+    app: hadoop
+spec:
+  ports:
+    - port: 9000
+      name: client
+  selector:
+    app: hadoop
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hadoop
+spec:
+  selector:
+    matchLabels:
+      app: hadoop
+  serviceName: hadoop-server
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: hadoop
+    spec:
+      containers:
+        - name: hadoop
+          imagePullPolicy: Always
+          image: "registry.aggregion.com/atlas/hadoop:latest"
+          command: ["sh", "-c", "/home/atlas/scripts/atlas-hadoop-setup.sh; /home/atlas/scripts/atlas-hadoop.sh"]
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 9000
+              name: client
+          volumeMounts:
+            - name: hadoop-data
+              mountPath: /data
+            - name: hadoop-name-data
+              mountPath: /name
+      initContainers:
+        - name: hadoop-init
+          image: "busybox:latest"
+          command: [ "sh","-c","mkdir -p /data && mkdir -p /name && chown -R 1000:1000 /data && chown -R 1000:1000 /home/hdfs && chown -R 1000:1000 /name && chown -R 1001:1000 /home/yarn" ]
+          resources:
+            limits:
+              cpu: "0.2"
+              memory: 200Mi
+          volumeMounts:
+            - name: hadoop-data
+              mountPath: /data
+            - name: hadoop-name-data
+              mountPath: /name
+            - name: hadoop-hdfs-data
+              mountPath: /home/hdfs
+            - name: hadoop-yarn-data
+              mountPath: /home/yarn
+      imagePullSecrets:
+        - name: regcred
+  volumeClaimTemplates:
+    - metadata:
+        name: hadoop-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
+    - metadata:
+        name: hadoop-name-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 4Gi
+    - metadata:
+        name: hadoop-hdfs-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 4Gi
+    - metadata:
+        name: hadoop-yarn-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 4Gi

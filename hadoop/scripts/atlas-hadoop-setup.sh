@@ -41,12 +41,8 @@ EOF
 cat <<EOF > ${HADOOP_HOME}/etc/hadoop/core-site.xml
 <configuration>
   <property>
-    <name>ha.zookeeper.quorum</name>
-    <value>zoo1:2181,zoo2:2181,zoo3:2181</value>
-  </property>
-  <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://hadoop:9000</value>
+    <value>hdfs://hadoop-0:9000</value>
   </property>
 </configuration>
 EOF
@@ -65,7 +61,7 @@ cat <<EOF > ${HADOOP_HOME}/etc/hadoop/hdfs-site.xml
 
   <property>
     <name>dfs.ha.automatic-failover.enabled</name>
-    <value>true</value>
+    <value>false</value>
   </property>
   <property>
     <name>dfs.replication</name>
@@ -80,18 +76,6 @@ EOF
 
 cat <<EOF > ${HADOOP_HOME}/etc/hadoop/yarn-site.xml
 <configuration>
-    <property>
-        <name>yarn.resourcemanager.zk-address</name>
-        <value>zoo1:2181,zoo2:2181,zoo3:2181</value>
-    </property>
-    <property>
-        <name>ha.zookeeper.quorum</name>
-        <value>zoo1:2181,zoo2:2181,zoo3:2181</value>
-    </property>
-    <property>
-        <name>yarn.resourcemanager.zk-state-store.address</name>
-        <value>zoo1:2181,zoo2:2181,zoo3:2181</value>
-    </property>
   <property>
     <name>yarn.resourcemanager.ha.enabled</name>
     <value>true</value>

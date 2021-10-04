@@ -9,6 +9,5 @@ COPY ./scripts/atlas-hadoop-mkdir.sh             /home/atlas/scripts/
 
 RUN mkdir -p /data /name
 RUN chown -R hdfs:hadoop /data /name
-RUN /home/atlas/scripts/atlas-hadoop-setup.sh
 
 ENTRYPOINT [ "/home/atlas/scripts/atlas-hadoop.sh" ]
