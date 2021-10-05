@@ -42,7 +42,7 @@ cat <<EOF > ${HADOOP_HOME}/etc/hadoop/core-site.xml
 <configuration>
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://hadoop-0:9000</value>
+    <value>hdfs://localhost:9000</value>
   </property>
 </configuration>
 EOF
