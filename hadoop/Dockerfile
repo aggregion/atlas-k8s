@@ -7,6 +7,7 @@ COPY ./scripts/atlas-hadoop-setup.sh             /home/atlas/scripts/
 COPY ./scripts/atlas-hadoop.sh                   /home/atlas/scripts/
 COPY ./scripts/atlas-hadoop-mkdir.sh             /home/atlas/scripts/
 
+RUN chmod +x /home/atlas/scripts/*.sh
 RUN mkdir -p /data /name
 RUN chown -R hdfs:hadoop /data /name
 
